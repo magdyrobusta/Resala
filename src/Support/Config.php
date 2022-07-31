@@ -1,41 +1,27 @@
 <?php
+namespace RobustTools\Resala\Support;
 
-namespace RobustTools\SMS\Support;
+use InvalidArgumentException;
 
-use RobustTools\SMS\Exceptions\ConfigFileNotFoundException;
-
-class Config
+final class Config
 {
-    /**
-     * Config file name
-     */
     const CONFIG_FILE_NAME = "resala";
 
-    /**
-     * @var  ConfigRepository
-     */
-    private $config;
+    private ConfigRepository $config;
 
-    /**
-     * Config constructor.
-     *
-     * @param null $configFilePath
-     * @throws ConfigFileNotFoundException
-     */
-    public function __construct ($configFilePath = null)
+    public function __construct(?string $filepath= null)
     {
-        $config = $this->configurations($configFilePath);
-        $this->config = new ConfigRepository($config);
+        $this->config = new ConfigRepository(
+            $this->configurations($filepath)
+        );
     }
 
-    /**
-     * return the correct config directory path
-     *
-     * @param null $configFilePath
-     * @return  mixed|string
-     * @throws ConfigFileNotFoundException
-     */
-    private function configurations ($configFilePath = null)
+    public function get($key)
+    {
+        return $this->config->get($key);
+    }
+
+    private function configurations(?string $filepath = null)
     {
         // check if this laravel context (means this package is used inside laravel framework).
         // If so then try to load the laravel resala config file if it exist.
@@ -43,20 +29,10 @@ class Config
             return config(self::CONFIG_FILE_NAME);
         }
 
-        if (is_null($configFilePath) || !file_exists($configFilePath)) {
-            throw new ConfigFileNotFoundException();
+        if (is_null($filepath) || !file_exists($filepath)) {
+            throw new InvalidArgumentException("config file [$filepath] not found");
         }
 
-        return require $configFilePath;
-    }
-
-    /**
-     * @param $key
-     *
-     * @return  mixed
-     */
-    public function get ($key)
-    {
-        return $this->config->get($key);
+        return require $filepath;
     }
 }

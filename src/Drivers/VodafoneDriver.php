@@ -1,56 +1,28 @@
 <?php
+namespace RobustTools\Resala\Drivers;
 
-
-namespace RobustTools\SMS\Drivers;
-
-use RobustTools\SMS\abstracts\Driver;
-use RobustTools\SMS\Contracts\SMSServiceProviderDriverInterface;
-use RobustTools\SMS\Exceptions\InternalServerErrorException;
-use RobustTools\SMS\Exceptions\UnauthorizedException;
-use RobustTools\SMS\Support\Config;
-use RobustTools\SMS\Support\HTTPClient;
-use RobustTools\SMS\Support\VodafoneXMLRequestBodyBuilder;
-
-final class VodafoneDriver extends Driver implements SMSServiceProviderDriverInterface
+use RobustTools\Resala\Abstracts\Driver;
+use RobustTools\Resala\Contracts\{SMSDriverInterface, SMSDriverResponseInterface};
+use RobustTools\Resala\Response\VodafoneResponse;
+use RobustTools\Resala\Support\{HTTP, VodafonePayloadBuilder};
+final class VodafoneDriver extends Driver implements SMSDriverInterface
 {
-    /**
-     * @var string|array
-     */
+    /** @var string|array */
     private $recipients;
 
-    /**
-     * @var string
-     */
-    private $message;
+    private string $message;
 
-    /**
-     * @var string
-     */
-    private $accountId;
+    private string $accountId;
 
-    /**
-     * @var string
-     */
-    private $password;
-    /**
-     * @var string
-     */
-    private $senderName;
+    private string $password;
 
-    /**
-     * @var string
-     */
-    private $secureHash;
-    /**
-     * @var string
-     */
-    private $endPoint;
+    private string $senderName;
 
-    /**
-     * VodafoneDriver constructor.
-     * @param array $config
-     */
-    public function __construct (array $config)
+    private string $secureHash;
+
+    private string $endPoint;
+
+    public function __construct(array $config)
     {
         $this->accountId = $config["account_id"];
         $this->password = $config["password"];
@@ -63,52 +35,30 @@ final class VodafoneDriver extends Driver implements SMSServiceProviderDriverInt
      * @param string|array $recipients
      * @return string|array
      */
-    public function to ($recipients)
+    public function to($recipients)
     {
         return $this->recipients = $recipients;
     }
 
-    /**
-     * @param string $message
-     * @return string
-     */
-    public function message (string $message): string
+    public function message(string $message): string
     {
         return $this->message = $message;
     }
 
-    /**
-     * @return string
-     */
-    private function hashableKey (): string
+    public function send(): SMSDriverResponseInterface
     {
-        $hashableKey = "AccountId=" . $this->accountId . "&Password=" . $this->password;
+        $response = HTTP::post($this->endPoint, $this->headers(), $this->payload());
 
-        if ($this->isSendingToMultipleRecipients($this->recipients)) {
-            foreach ($this->recipients as $recipient) {
-                $hashableKey .= "&SenderName=" . $this->senderName . "&ReceiverMSISDN=" . $recipient . "&SMSText=" . $this->message;
-            }
-            return $hashableKey;
-
-        } else {
-            return "AccountId=" . $this->accountId . "&Password=" . $this->password . "&SenderName=" . $this->senderName . "&ReceiverMSISDN=" . $this->recipients . "&SMSText=" . $this->message;
-        }
+        return new VodafoneResponse($response);
     }
 
-    /**
-     * Build Vodafone request payload.
-     *
-     * @return string
-     */
-    public function payload (): string
+    protected function payload(): string
     {
-        $secureHash = strtoupper(hash_hmac('SHA256', $this->hashableKey(), $this->secureHash));
-
-        return (new VodafoneXMLRequestBodyBuilder(
+        return (new VodafonePayloadBuilder(
             $this->accountId,
             $this->password,
             $this->senderName,
-            $secureHash,
+            strtoupper(hash_hmac('SHA256', $this->hashableKey(), $this->secureHash)),
             $this->recipients,
             $this->message
         ))->build();
@@ -119,20 +69,23 @@ final class VodafoneDriver extends Driver implements SMSServiceProviderDriverInt
      *
      * @return array|string[]
      */
-    public function headers (): array
+    protected function headers(): array
     {
         return ['Content-Type' => 'application/xml; charset=UTF8'];
     }
 
-    /**
-     * @return string
-     * @throws UnauthorizedException|InternalServerErrorException
-     */
-    public function send (): string
+    private function hashableKey(): string
     {
-        $response = (new HTTPClient())->post($this->endPoint, $this->headers(), $this->payload());
+        $hashableKey = sprintf("AccountId=%s&Password=%s", $this->accountId, $this->password);
 
-        return $response->Description;
+        if ($this->toMultiple($this->recipients)) {
+            foreach ($this->recipients as $recipient) {
+                $hashableKey .= sprintf("&SenderName=%s&ReceiverMSISDN=%s&SMSText=%s", $this->senderName, $recipient, $this->message);
+            }
+
+            return $hashableKey;
+        } else {
+            return sprintf("AccountId=%s&Password=%s&SenderName=%s&ReceiverMSISDN=%s&SMSText=%s", $this->accountId, $this->password, $this->senderName, $this->recipients, $this->message);
+        }
     }
-
 }

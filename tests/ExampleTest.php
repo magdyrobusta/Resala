@@ -1,21 +1,19 @@
 <?php
-
-namespace RobustTools\SMS\Tests;
+namespace RobustTools\Resala\Tests;
 
 use Orchestra\Testbench\TestCase;
-use RobustTools\SMS\SMSServiceProvider;
+use RobustTools\Resala\SMSServiceProvider;
 
 class ExampleTest extends TestCase
 {
-
-    protected function getPackageProviders($app)
-    {
-        return [SMSServiceProvider::class];
-    }
-    
     /** @test */
     public function true_is_true()
     {
         $this->assertTrue(true);
+    }
+
+    protected function getPackageProviders($app)
+    {
+        return [SMSServiceProvider::class];
     }
 }

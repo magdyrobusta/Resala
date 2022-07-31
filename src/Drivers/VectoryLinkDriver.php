@@ -3,10 +3,10 @@ namespace RobustTools\Resala\Drivers;
 
 use RobustTools\Resala\Abstracts\Driver;
 use RobustTools\Resala\Contracts\{SMSDriverInterface, SMSDriverResponseInterface};
-use RobustTools\Resala\Response\InfobipResponse;
+use RobustTools\Resala\Response\VectoryLinkResponse;
 use RobustTools\Resala\Support\HTTP;
 
-final class InfobipDriver extends Driver implements SMSDriverInterface
+final class VectoryLinkDriver extends Driver implements SMSDriverInterface
 {
     /**
      * @var string|array
@@ -23,12 +23,15 @@ final class InfobipDriver extends Driver implements SMSDriverInterface
 
     private string $endPoint;
 
+    private string $lang;
+
     public function __construct(array $config)
     {
         $this->username = $config["username"];
         $this->password = $config["password"];
         $this->senderName = $config["sender_name"];
         $this->endPoint = $config["end_point"];
+        $this->lang = $config["lang"];
     }
 
     /**
@@ -37,7 +40,9 @@ final class InfobipDriver extends Driver implements SMSDriverInterface
      */
     public function to($recipients)
     {
-        return $this->recipients = $recipients;
+        return $this->recipients = $this->toMultiple($recipients)
+            ? implode(', ', $recipients)
+            : $recipients;
     }
 
     public function message(string $message): string
@@ -47,31 +52,29 @@ final class InfobipDriver extends Driver implements SMSDriverInterface
 
     public function send(): SMSDriverResponseInterface
     {
-        $response = (new HTTP())->post($this->endPoint, $this->headers(), $this->payload());
+        $response = HTTP::get($this->endPoint, $this->headers(), $this->payload());
 
-        return new InfobipResponse($response);
+        return new VectoryLinkResponse($response);
     }
 
-    protected function payload(): string
+    protected function payload(): array
     {
-        return json_encode([
-            "text" => $this->message,
-            "to" => $this->recipients,
-            "from" => $this->senderName
-        ]);
+        return
+            [
+                "SMSText" => $this->message,
+                "SMSReceiver" => $this->recipients,
+                "SMSSender" => $this->senderName,
+                'SMSLang' => $this->lang,
+                'UserName' => $this->username,
+                'Password' => $this->password
+            ];
     }
 
-    /**
-     * Set Infobip Driver request headers.
-     *
-     * @return array|string[]
-     */
     protected function headers(): array
     {
         return [
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
-            'Authorization' => sprintf("Basic %s", base64_encode($this->username . ':' . $this->password))
+            'Content-Type' => 'text/xml; charset=utf-8',
+            'Content-Length' => 0
         ];
     }
 }
