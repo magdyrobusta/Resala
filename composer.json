@@ -20,14 +20,8 @@
         "php": "*",
         "ext-dom": "*",
         "ext-simplexml": "*",
-        "guzzlehttp/guzzle": "*",
         "illuminate/support": "*",
         "ext-json": "*"
-    },
-    "require-dev": {
-        "friendsofphp/php-cs-fixer": "*",
-        "orchestra/testbench": "*",
-        "phpunit/phpunit": "*"
     },
     "autoload": {
         "psr-4": {
